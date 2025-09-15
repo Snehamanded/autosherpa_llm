@@ -4,6 +4,51 @@ const { handleAboutUsStep } = require('./aboutUs');
 const { handleBrowseUsedCars } = require('./handleBrowseUsedCars');
 const { extractBrowseSlots, extractValuationSlots, extractContactSlots, extractAboutSlots } = require('./intentExtractor');
 const { getMainMenu } = require('./conversationFlow');
+const MessageLogger = require('./messageLogger');
+
+// Function to categorize message type for logging
+function categorizeMessageType(message, session) {
+  const lowerMsg = message.toLowerCase();
+  
+  // Check for specific keywords
+  if (lowerMsg.includes('browse') || lowerMsg.includes('car') || lowerMsg.includes('view') || lowerMsg.includes('search')) {
+    return 'browse_cars';
+  }
+  if (lowerMsg.includes('valuation') || lowerMsg.includes('value') || lowerMsg.includes('price') || lowerMsg.includes('worth')) {
+    return 'car_valuation';
+  }
+  if (lowerMsg.includes('contact') || lowerMsg.includes('call') || lowerMsg.includes('speak') || lowerMsg.includes('talk')) {
+    return 'contact_team';
+  }
+  if (lowerMsg.includes('about') || lowerMsg.includes('info') || lowerMsg.includes('information')) {
+    return 'about_us';
+  }
+  if (lowerMsg.includes('test') || lowerMsg.includes('drive') || lowerMsg.includes('booking')) {
+    return 'test_drive';
+  }
+  if (lowerMsg.includes('hi') || lowerMsg.includes('hello') || lowerMsg.includes('start') || lowerMsg.includes('begin')) {
+    return 'greeting';
+  }
+  
+  // Check session step for context
+  if (session.step && session.step.includes('browse')) {
+    return 'browse_cars';
+  }
+  if (session.step && session.step.includes('valuation')) {
+    return 'car_valuation';
+  }
+  if (session.step && session.step.includes('contact')) {
+    return 'contact_team';
+  }
+  if (session.step && session.step.includes('about')) {
+    return 'about_us';
+  }
+  if (session.step && session.step.includes('test')) {
+    return 'test_drive';
+  }
+  
+  return 'general';
+}
 
 async function mainRouter(session, message, pool) {
   const lowerMsg = message.toLowerCase();
@@ -12,6 +57,10 @@ async function mainRouter(session, message, pool) {
   console.log("🔍 Debug - session.conversationEnded:", session.conversationEnded);
   console.log("🔍 Session object ID:", session._id || 'no_id');
   console.log("🔍 Session keys:", Object.keys(session));
+
+  // Categorize message type for logging
+  const messageType = categorizeMessageType(message, session);
+  console.log("📊 Message type:", messageType);
 
 if (session.conversationEnded && (lowerMsg.includes('start') || lowerMsg.includes('begin') || lowerMsg.includes('new') || lowerMsg.includes('restart') || lowerMsg.includes('hi') || lowerMsg.includes('hello'))) {
     delete session.conversationEnded;

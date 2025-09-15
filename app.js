@@ -6,6 +6,7 @@ const axios = require('axios');
 // Import database connection
 const pool = require('./db');
 const { routeMessage } = require('./utils/mainRouter');
+const MessageLogger = require('./utils/messageLogger');
 const sessions = {}; 
 
 const app = express();
@@ -94,7 +95,22 @@ app.post('/webhook', async (req, res) => {
         return res.sendStatus(200);
       }
 
-           let response;
+      // Log incoming message
+      try {
+        await MessageLogger.logMessage({
+          phoneNumber: from,
+          messageType: 'incoming',
+          messageContent: userMsg,
+          responseSent: false,
+          sessionId: sessions[from].sessionId || null,
+          userAgent: req.headers['user-agent'],
+          ipAddress: req.ip || req.connection.remoteAddress
+        });
+      } catch (logError) {
+        console.error("❌ Error logging incoming message:", logError);
+      }
+
+      let response;
       try {
         response = await routeMessage(sessions[from], userMsg, pool);
         console.log('Session After:', JSON.stringify(sessions[from], null, 2));
@@ -111,6 +127,23 @@ app.post('/webhook', async (req, res) => {
         // Don't send any additional message
       } else if (response && response.message) {
         await sendWhatsAppMessage(from, response.message, response.options || [], response.messages || []);
+        
+        // Log outgoing response
+        try {
+          await MessageLogger.logMessage({
+            phoneNumber: from,
+            messageType: 'outgoing',
+            messageContent: response.message,
+            responseSent: true,
+            responseContent: response.message,
+            sessionId: sessions[from].sessionId || null,
+            userAgent: req.headers['user-agent'],
+            ipAddress: req.ip || req.connection.remoteAddress
+          });
+        } catch (logError) {
+          console.error("❌ Error logging outgoing message:", logError);
+        }
+        
       } else {
         console.error("❌ Invalid response from routeMessage:", response);
         await sendWhatsAppMessage(from, "I apologize, but I encountered an error. Please try again.", [], []);

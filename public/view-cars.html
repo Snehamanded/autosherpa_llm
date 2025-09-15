@@ -166,12 +166,15 @@
                         <a class="nav-link active" href="/view-cars">
                             <i class="fas fa-car-side"></i>View Cars
                         </a>
-                        <a class="nav-link" href="/test-drive-bookings">
+                        <a class="nav-link" href="/reports">
+                            <i class="fas fa-chart-bar"></i>Reports
+                        </a>
+                        <!-- <a class="nav-link" href="/test-drive-bookings">
                             <i class="fas fa-calendar-check"></i>Test Drive Bookings
                         </a>
                         <a class="nav-link" href="/car-valuations">
                             <i class="fas fa-calculator"></i>Car Valuations
-                        </a>
+                        </a> -->
                     </nav>
                     
                     <hr class="my-4">
@@ -321,6 +324,85 @@
                         <i class="fas fa-images me-2"></i>Upload Images
                     </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Car Modal -->
+    <div class="modal fade" id="editCarModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Car</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editCarForm" class="row g-3">
+                        <input type="hidden" id="editCarId">
+                        <div class="col-md-6">
+                            <label class="form-label">Registration Number</label>
+                            <input type="text" id="editRegistration" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select id="editStatus" class="form-select">
+                                <option value="available">Available</option>
+                                <option value="sold">Sold</option>
+                                <option value="reserved">Reserved</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Brand</label>
+                            <input type="text" id="editBrand" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Model</label>
+                            <input type="text" id="editModel" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Variant</label>
+                            <input type="text" id="editVariant" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Type</label>
+                            <input type="text" id="editType" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Year</label>
+                            <input type="number" id="editYear" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fuel</label>
+                            <input type="text" id="editFuel" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Transmission</label>
+                            <input type="text" id="editTransmission" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Mileage (KM)</label>
+                            <input type="number" id="editMileage" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Price</label>
+                            <input type="number" id="editPrice" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Color</label>
+                            <input type="text" id="editColor" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea id="editDescription" rows="3" class="form-control"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCarEdits()">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
                 </div>
             </div>
         </div>
@@ -523,6 +605,63 @@
             grid.innerHTML = filteredCars.map(car => createCarCard(car)).join('');
         }
 
+        // Open edit modal and populate
+        function openEditCar(carId) {
+            const car = allCars.find(c => c.id === carId);
+            if (!car) return;
+            document.getElementById('editCarId').value = car.id;
+            document.getElementById('editRegistration').value = car.registration_number || '';
+            document.getElementById('editStatus').value = car.status || 'available';
+            document.getElementById('editBrand').value = car.brand || '';
+            document.getElementById('editModel').value = car.model || '';
+            document.getElementById('editVariant').value = car.variant || '';
+            document.getElementById('editType').value = car.type || '';
+            document.getElementById('editYear').value = car.year || '';
+            document.getElementById('editFuel').value = car.fuel_type || '';
+            document.getElementById('editTransmission').value = car.transmission || '';
+            document.getElementById('editMileage').value = car.mileage || '';
+            document.getElementById('editPrice').value = car.price || '';
+            document.getElementById('editColor').value = car.color || '';
+            document.getElementById('editDescription').value = car.description || '';
+            const modal = new bootstrap.Modal(document.getElementById('editCarModal'));
+            modal.show();
+        }
+
+        // Save edits via API
+        async function saveCarEdits() {
+            const id = document.getElementById('editCarId').value;
+            const body = {
+                registration_number: document.getElementById('editRegistration').value,
+                status: document.getElementById('editStatus').value,
+                brand: document.getElementById('editBrand').value,
+                model: document.getElementById('editModel').value,
+                variant: document.getElementById('editVariant').value,
+                type: document.getElementById('editType').value,
+                year: parseInt(document.getElementById('editYear').value) || null,
+                fuel_type: document.getElementById('editFuel').value,
+                transmission: document.getElementById('editTransmission').value,
+                mileage: parseInt(document.getElementById('editMileage').value) || null,
+                price: parseFloat(document.getElementById('editPrice').value) || null,
+                color: document.getElementById('editColor').value,
+                description: document.getElementById('editDescription').value
+            };
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`/api/cars/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) { alert('Failed to save changes'); return; }
+            const updated = await res.json();
+            const idx = allCars.findIndex(c => c.id == id);
+            if (idx >= 0) allCars[idx] = { ...allCars[idx], ...updated.car };
+            filteredCars = [...allCars];
+            displayCars();
+            const modalEl = document.getElementById('editCarModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }
+
         // Create car card
         function createCarCard(car) {
             console.log(`📸 Creating card for car: ${car.registration_number}, Images: ${car.image_paths ? car.image_paths.length : 0}`);
@@ -583,11 +722,8 @@
                             <i class="fas fa-palette me-1"></i>${car.color || 'N/A'}</div>
                         <div class="car-price">₹${car.price ? car.price.toLocaleString() : 'N/A'}</div>
                         <div class="mt-3">
-                            <button class="btn btn-outline-primary btn-sm me-2" onclick="showCarDetails(${car.id})">
+                            <button class="btn btn-outline-primary btn-sm" onclick="showCarDetails(${car.id})">
                                 <i class="fas fa-eye me-1"></i>View Details
-                            </button>
-                            <button class="btn btn-outline-warning btn-sm" onclick="editCar(${car.id})">
-                                <i class="fas fa-edit me-1"></i>Edit
                             </button>
                         </div>
                     </div>

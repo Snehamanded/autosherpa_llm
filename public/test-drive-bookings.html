@@ -104,6 +104,9 @@
                         <a class="nav-link" href="/car-valuations">
                             <i class="fas fa-calculator"></i>Car Valuations
                         </a>
+                        <a class="nav-link" href="/reports">
+                            <i class="fas fa-chart-bar"></i>Reports
+                        </a>
                     </nav>
                     
                     <hr class="my-4">
@@ -195,9 +198,14 @@
                             <div class="col-md-3">
                                 <label class="form-label">&nbsp;</label>
                                 <div class="d-grid">
-                                    <button class="btn btn-success" onclick="downloadPDF()">
-                                        <i class="fas fa-file-pdf me-2"></i>Download PDF
-                                    </button>
+                                    <div class="btn-group">
+                                        <button class="btn btn-success" onclick="downloadPDF(event)">
+                                            <i class="fas fa-file-pdf me-2"></i>Download PDF
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="downloadExcel(event)">
+                                            <i class="fas fa-file-excel me-2"></i>Download Excel
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -482,7 +490,7 @@
         }
 
         // Download PDF function
-        async function downloadPDF() {
+        async function downloadPDF(e) {
             try {
                 const token = localStorage.getItem('authToken');
                 if (!token) {
@@ -491,7 +499,7 @@
                 }
                 
                 // Show loading state
-                const downloadBtn = event.target;
+                const downloadBtn = e.target.closest('button');
                 const originalText = downloadBtn.innerHTML;
                 downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating PDF...';
                 downloadBtn.disabled = true;
@@ -526,9 +534,35 @@
                 alert('Error downloading PDF. Please try again.');
             } finally {
                 // Reset button state
-                const downloadBtn = event.target;
+                const downloadBtn = e.target.closest('button');
                 downloadBtn.innerHTML = originalText;
                 downloadBtn.disabled = false;
+            }
+        }
+
+        // Download Excel
+        async function downloadExcel(e) {
+            try {
+                const token = localStorage.getItem('authToken');
+                const btn = e.target.closest('button');
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating Excel...';
+                btn.disabled = true;
+                const res = await fetch('/api/test-drive-bookings/excel', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) { alert('Failed to generate Excel'); return; }
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'test-drive-bookings.xlsx';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                const btn = e.target.closest('button');
+                btn.innerHTML = original;
+                btn.disabled = false;
             }
         }
 
