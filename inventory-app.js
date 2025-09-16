@@ -315,15 +315,6 @@ app.get('/car-valuations', authenticateToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'car-valuations.html'));
 });
 
-// Reports routes
-app.get('/reports', authenticateToken, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'reports.html'));
-});
-
-app.get('/reports/data-summary', authenticateToken, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'reports-data-summary.html'));
-});
-
 // API test page for debugging
 app.get('/test-api', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'test-api.html'));
@@ -337,6 +328,13 @@ app.get('/test-images', (req, res) => {
 // Upload test page for debugging
 app.get('/test-upload', (req, res) => {
     res.sendFile(path.join(__dirname, 'test-upload.html'));
+});
+// Reports routes
+app.get('/reports', authenticateToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'reports.html'));
+});
+app.get('/reports/data-summary', authenticateToken, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'reports-data-summary.html'));
 });
 
 // Debug endpoint to check users in database
@@ -1006,17 +1004,10 @@ app.get('/api/cars', authenticateToken, async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
 // API endpoint to update car details
 app.put('/api/cars/:id', authenticateToken, async (req, res) => {
     try {
         const carId = req.params.id;
-=======
-// Update car details
-app.put('/api/cars/:id', authenticateToken, async (req, res) => {
-    try {
-        const carId = parseInt(req.params.id);
->>>>>>> 32e22de
         const {
             registration_number,
             brand,
@@ -1035,7 +1026,6 @@ app.put('/api/cars/:id', authenticateToken, async (req, res) => {
             description,
             status
         } = req.body;
-<<<<<<< HEAD
         
         console.log(`📝 Updating car ${carId} for dealer ${req.user.id}...`);
         
@@ -1116,47 +1106,6 @@ app.put('/api/cars/:id', authenticateToken, async (req, res) => {
             car: updateResult.rows[0]
         });
         
-=======
-
-        // Ensure car belongs to dealer
-        const ownCheck = await pool.query('SELECT id FROM cars WHERE id = $1 AND dealer_id = $2', [carId, req.user.id]);
-        if (ownCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Car not found' });
-        }
-
-        // Build dynamic set clause
-        const fields = [
-            ['registration_number', registration_number],
-            ['brand', brand],
-            ['model', model],
-            ['variant', variant],
-            ['type', type],
-            ['year', year],
-            ['fuel_type', fuel_type],
-            ['transmission', transmission],
-            ['mileage', mileage],
-            ['price', price],
-            ['color', color],
-            ['engine_cc', engine_cc],
-            ['power_bhp', power_bhp],
-            ['seats', seats],
-            ['description', description],
-            ['status', status]
-        ].filter(([, v]) => v !== undefined);
-
-        if (fields.length === 0) {
-            return res.json({ message: 'No changes' });
-        }
-
-        const setFragments = fields.map(([k], i) => `${k} = $${i + 1}`);
-        const values = fields.map(([, v]) => v);
-        values.push(carId);
-
-        const query = `UPDATE cars SET ${setFragments.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${values.length} RETURNING *`;
-        const result = await pool.query(query, values);
-
-        res.json({ message: 'Car updated successfully', car: result.rows[0] });
->>>>>>> 32e22de
     } catch (error) {
         console.error('❌ Update car error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -1255,53 +1204,6 @@ app.get('/api/car-valuations', authenticateToken, async (req, res) => {
     }
 });
 
-// Message logs API endpoint
-app.get('/api/message-logs', authenticateToken, async (req, res) => {
-    try {
-        console.log(`📊 Fetching message logs for dealer ${req.user.id}...`);
-        
-        const result = await pool.query(
-            `SELECT * FROM message_logs ORDER BY created_at DESC`
-        );
-        
-        console.log(`✅ Found ${result.rows.length} message logs`);
-        res.json(result.rows);
-        
-    } catch (error) {
-        console.error('❌ Error fetching message logs:', error);
-        res.status(500).json({ error: 'Failed to fetch message logs' });
-    }
-});
-
-// Message statistics API endpoint
-app.get('/api/message-stats', authenticateToken, async (req, res) => {
-    try {
-        console.log(`📊 Fetching message statistics for dealer ${req.user.id}...`);
-        
-        const MessageLogger = require('./utils/messageLogger');
-        
-        // Get stats for last 30 days
-        const endDate = new Date();
-        const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-        
-        const [messageStats, timeBasedStats, dailyStats] = await Promise.all([
-            MessageLogger.getMessageStats(startDate, endDate),
-            MessageLogger.getTimeBasedStats(startDate, endDate),
-            MessageLogger.getDailyStats(30)
-        ]);
-        
-        res.json({
-            messageStats,
-            timeBasedStats,
-            dailyStats
-        });
-        
-    } catch (error) {
-        console.error('❌ Error fetching message statistics:', error);
-        res.status(500).json({ error: 'Failed to fetch message statistics' });
-    }
-});
-
 // API endpoint to generate PDF for test drive bookings
 app.get('/api/test-drive-bookings/pdf', authenticateToken, async (req, res) => {
     try {
@@ -1330,35 +1232,6 @@ app.get('/api/test-drive-bookings/pdf', authenticateToken, async (req, res) => {
         
     } catch (error) {
         console.error('❌ Generate test drive bookings PDF error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// API endpoint to generate Excel for test drive bookings
-app.get('/api/test-drive-bookings/excel', authenticateToken, async (req, res) => {
-    try {
-        const result = await pool.query(`SELECT * FROM test_drives ORDER BY created_at DESC`);
-        const rows = result.rows.map(r => ({
-            ID: r.id,
-            Name: r.name || '',
-            Phone: r.phone || '',
-            Car: r.car || '',
-            DateTime: r.datetime ? new Date(r.datetime).toISOString() : '',
-            Has_License: r.has_dl ? 'Yes' : 'No',
-            Created_At: r.created_at ? new Date(r.created_at).toISOString() : ''
-        }));
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.json_to_sheet(rows);
-        ws['!cols'] = [
-            { wch: 8 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 22 }, { wch: 12 }, { wch: 22 }
-        ];
-        xlsx.utils.book_append_sheet(wb, ws, 'Test Drives');
-        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="test-drive-bookings.xlsx"');
-        res.send(buffer);
-    } catch (error) {
-        console.error('❌ Generate test drives Excel error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -1405,42 +1278,6 @@ app.get('/api/car-valuations/pdf', authenticateToken, async (req, res) => {
         
     } catch (error) {
         console.error('❌ Generate car valuations PDF error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// API endpoint to generate Excel for car valuations
-app.get('/api/car-valuations/excel', authenticateToken, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT id, name, phone, brand, model, year, fuel as fuel_type, kms as mileage, owner, condition, location, submitted_at as created_at
-            FROM car_valuations ORDER BY submitted_at DESC`);
-        const rows = result.rows.map(r => ({
-            ID: r.id,
-            Name: r.name || '',
-            Phone: r.phone || '',
-            Brand: r.brand || '',
-            Model: r.model || '',
-            Year: r.year || '',
-            Fuel: r.fuel_type || '',
-            Mileage_KM: r.mileage || '',
-            Owner: r.owner || '',
-            Condition: r.condition || '',
-            Location: r.location || '',
-            Created_At: r.created_at ? new Date(r.created_at).toISOString() : ''
-        }));
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.json_to_sheet(rows);
-        ws['!cols'] = [
-            { wch: 8 }, { wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 22 }
-        ];
-        xlsx.utils.book_append_sheet(wb, ws, 'Car Valuations');
-        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="car-valuations.xlsx"');
-        res.send(buffer);
-    } catch (error) {
-        console.error('❌ Generate valuations Excel error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
