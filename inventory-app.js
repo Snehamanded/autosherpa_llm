@@ -904,10 +904,10 @@ app.post('/api/upload-car-images', authenticateToken, imageUpload.array('images'
             console.log(`📸 Processing image ${i + 1}/${req.files.length}: ${filename} -> ${imagePath} (type: ${imageType}, index: ${imageIndex})`);
             
             try {
-                // Save image record to database with the local path
+                // Save image record to database with the local path and index (if schema has image_index)
                 const imageResult = await pool.query(
-                    'INSERT INTO car_images (car_id, image_path, image_type) VALUES ($1, $2, $3) RETURNING id',
-                    [carId, imagePath, imageType]
+                    'INSERT INTO car_images (car_id, image_path, image_type, image_index) VALUES ($1, $2, $3, $4) RETURNING id',
+                    [carId, imagePath, imageType, parseInt(imageIndex)]
                 );
                 
                 uploadedImages.push({
@@ -1185,14 +1185,14 @@ app.get('/api/car-valuations', authenticateToken, async (req, res) => {
                 brand,
                 model,
                 year,
-                fuel,
-                kms as mileage,
+                fuel_type AS fuel,
+                mileage,
                 owner,
                 condition,
                 location,
-                submitted_at as created_at
+                created_at
              FROM car_valuations 
-             ORDER BY submitted_at DESC`
+             ORDER BY created_at DESC`
         );
         
         console.log(`✅ Found ${result.rows.length} car valuations`);
@@ -1250,14 +1250,14 @@ app.get('/api/car-valuations/pdf', authenticateToken, async (req, res) => {
                 brand,
                 model,
                 year,
-                fuel,
-                kms as mileage,
+                fuel_type AS fuel,
+                mileage,
                 owner,
                 condition,
                 location,
-                submitted_at as created_at
+                created_at
              FROM car_valuations 
-             ORDER BY submitted_at DESC`
+             ORDER BY created_at DESC`
         );
         
         if (result.rows.length === 0) {

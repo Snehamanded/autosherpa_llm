@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS car_images (
     car_id INTEGER REFERENCES cars(id) ON DELETE CASCADE,
     image_path VARCHAR(255) NOT NULL,
     image_type VARCHAR(20) NOT NULL, -- 'front', 'back', 'side', 'interior'
+    image_index INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS message_logs (
 CREATE INDEX IF NOT EXISTS idx_cars_registration_number ON cars(registration_number);
 CREATE INDEX IF NOT EXISTS idx_cars_dealer_id ON cars(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_car_images_car_id ON car_images(car_id);
+CREATE INDEX IF NOT EXISTS idx_car_images_car_id_index ON car_images(car_id, image_index);
 CREATE INDEX IF NOT EXISTS idx_bot_confirmations_car_id ON bot_confirmations(car_id);
 CREATE INDEX IF NOT EXISTS idx_callback_requests_phone ON callback_requests(phone);
 CREATE INDEX IF NOT EXISTS idx_callback_requests_status ON callback_requests(status);

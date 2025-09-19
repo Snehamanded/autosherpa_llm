@@ -1,4 +1,4 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// Removed Gemini integration; using regex-only extraction
 
 function simpleRegexExtract(message) {
   const lower = message.toLowerCase();
@@ -52,50 +52,15 @@ function simpleRegexExtract(message) {
   return { intent, brand, type, budgetMin, budgetMax, source: 'regex' };
 }
 
-async function extractSlotsWithGemini(message) {
-  if (!process.env.GEMINI_API_KEY) return null;
-  try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const prompt = `You extract structured fields from a user sentence about buying/browsing used cars.
-Return strict JSON with keys: intent (one of: browse, valuation, contact, about, unknown), brand (lowercase word or null), type (suv/sedan/hatchback/coupe/convertible/wagon/pickup or null), budgetMin (integer rupees or null), budgetMax (integer rupees or null).
-User: "${message}"`;
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonStart = text.indexOf('{');
-    const jsonEnd = text.lastIndexOf('}');
-    if (jsonStart === -1 || jsonEnd === -1) return null;
-    const parsed = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
-    parsed.source = 'gemini';
-    return parsed;
-  } catch (e) {
-    return null;
-  }
-}
+// Removed: extractSlotsWithGemini
 
 async function extractBrowseSlots(message) {
-  // Try Gemini first, fallback to regex
-  const gem = await extractSlotsWithGemini(message);
-  if (gem) return gem;
+  // Regex-only extraction
   return simpleRegexExtract(message);
 }
 
 async function extractValuationSlots(message) {
-  // Gemini JSON schema for valuation
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const prompt = `Extract valuation details from user text. Return strict JSON with keys:
-{ intent: 'valuation'|'unknown', brand: string|null, model: string|null, year: number|null, fuel: 'Petrol'|'Diesel'|'CNG'|'Electric'|null, kms: string|null, owner: string|null, condition: string|null, name: string|null, phone: string|null, location: string|null }.
-User: "${message}"`;
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      const s = text.indexOf('{');
-      const e = text.lastIndexOf('}');
-      if (s !== -1 && e !== -1) return JSON.parse(text.slice(s, e + 1));
-    } catch (_) {}
-  }
+  // Regex-only extraction
   const lower = message.toLowerCase();
   const rough = {};
   // very basic regex for year

@@ -62,6 +62,19 @@ async function mainRouter(session, message, pool) {
   const messageType = categorizeMessageType(message, session);
   console.log("📊 Message type:", messageType);
 
+  // Global end conversation handler
+  if (lowerMsg.includes('end conversation')) {
+    console.log("🛑 'End conversation' detected. Ending session.");
+    // Preserve the ended flag while clearing the rest of the session
+    const endedFlag = true;
+    Object.keys(session).forEach(key => {
+      delete session[key];
+    });
+    session.conversationEnded = endedFlag;
+    // Send a short confirmation; subsequent messages will be ignored until restart
+    return { message: "✅ Conversation ended. Say 'start' or 'hi' to begin again." };
+  }
+
 if (session.conversationEnded && (lowerMsg.includes('start') || lowerMsg.includes('begin') || lowerMsg.includes('new') || lowerMsg.includes('restart') || lowerMsg.includes('hi') || lowerMsg.includes('hello'))) {
     delete session.conversationEnded;
     // Clear all session data for fresh start
