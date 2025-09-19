@@ -20,7 +20,7 @@ function getImageUrl(imagePath) {
     if (imagePath.startsWith('uploads/')) {
         const filePath = path.resolve(imagePath);
         if (fs.existsSync(filePath)) {
-            const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
+            const baseUrl = process.env.BASE_URL || `http://27.111.72.50:3000`;
             return `${baseUrl}/${imagePath}`;
         } else {
             console.log(`⚠️ Image file not found: ${imagePath}`);

@@ -271,7 +271,29 @@ async function getCarImages(pool, carId) {
 // Function to get car images by registration number using the new naming convention
 async function getCarImagesByRegistration(pool, registrationNumber) {
   try {
-    // Check if images exist in the new naming convention: uploads/cars/registrationNumber_1.jpg, etc.
+    // First, try to get images from database
+    const dbResult = await pool.query(`
+      SELECT ci.image_path, ci.image_type, ci.image_index
+      FROM car_images ci
+      JOIN cars c ON ci.car_id = c.id
+      WHERE c.registration_number = $1
+      ORDER BY ci.image_index, ci.id
+    `, [registrationNumber]);
+    
+    if (dbResult.rows.length > 0) {
+      console.log(`📸 Found ${dbResult.rows.length} images in database for ${registrationNumber}`);
+      
+      const images = dbResult.rows.map((row, index) => ({
+        path: row.image_path,
+        type: row.image_type,
+        sequence: (row.image_index || 0) + 1,
+        filename: row.image_path.split('/').pop()
+      }));
+      
+      return images;
+    }
+    
+    // Fallback: Check file system for images in the new naming convention
     const fs = require('fs');
     const path = require('path');
     
@@ -320,7 +342,7 @@ async function getCarImagesByRegistration(pool, registrationNumber) {
 
 // Simple function to get image URLs by registration number (for WhatsApp bot)
 function getImageUrlsByRegistration(registrationNumber, baseUrl = null) {
-  const base = 'http://localhost:3000';
+  const base = 'http://27.111.72.50:3000';
   const imageUrls = [];
   
   // Check for images 1-4 using the new naming convention

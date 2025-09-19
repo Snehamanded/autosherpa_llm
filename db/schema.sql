@@ -147,3 +147,7 @@ CREATE TRIGGER update_cars_updated_at BEFORE UPDATE ON cars
 
 CREATE TRIGGER update_callback_requests_updated_at BEFORE UPDATE ON callback_requests
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Add image_index column to car_images table
+ALTER TABLE car_images
+ADD COLUMN image_index INTEGER;
