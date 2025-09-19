@@ -1,6 +1,19 @@
-const { getAllBrands, getModelsByBrand } = require('./carData');
 const { validateYear, validateFuelType, validateTransmission, validateCondition, validatePhoneNumber, validateName, createValidationErrorMessage } = require('./inputValidation');
 const pool = require('../db');
+
+async function getAllBrandsFromDB() {
+  const res = await pool.query(`SELECT DISTINCT brand FROM car_brands_models WHERE brand IS NOT NULL ORDER BY brand`);
+  return res.rows.map(r => String(r.brand).trim());
+}
+
+async function getModelsByBrandFromDB(brand) {
+  if (!brand) return [];
+  const res = await pool.query(
+    `SELECT DISTINCT model FROM car_brands_models WHERE model IS NOT NULL AND brand ILIKE $1 ORDER BY model LIMIT 100`,
+    [`%${brand}%`]
+  );
+  return res.rows.map(r => String(r.model).trim());
+}
 
 const YEAR_OPTIONS = [
   "2024", "2023", "2022", "2021", "2020", "Older than 2020"
@@ -33,7 +46,7 @@ const CONDITION_OPTIONS = [
   "Fair (Needs work)"
 ];
 
-async function handleCarValuationStep(session, userMessage) {
+async function handleCarValuationStep(session, userMessage, pool) {
   const state = session.step || 'start';
   console.log("🧠 Current step:", state);
   console.log("📝 User input:", userMessage);
@@ -43,20 +56,20 @@ async function handleCarValuationStep(session, userMessage) {
   if (['hi', 'hello', 'hey', 'hy', 'start', 'begin', 'restart', 'menu', 'main'].includes(lowerMsg)) {
     // Clear any existing session state to start fresh
     session.step = 'main_menu';
-    session.carIndex = 0;
-    session.filteredCars = [];
-    session.selectedCar = null;
-    session.budget = null;
-    session.type = null;
-    session.brand = null;
-    session.testDriveDate = null;
-    session.testDriveTime = null;
-    session.td_name = null;
-    session.td_phone = null;
-    session.td_license = null;
-    session.td_location_mode = null;
-    session.td_home_address = null;
-    session.td_drop_location = null;
+    // session.carIndex = 0;
+    // session.filteredCars = [];
+    // session.selectedCar = null;
+    // session.budget = null;
+    // session.type = null;
+    // session.brand = null;
+    // session.testDriveDate = null;
+    // session.testDriveTime = null;
+    // session.td_name = null;
+    // session.td_phone = null;
+    // session.td_license = null;
+    // session.td_location_mode = null;
+    // session.td_home_address = null;
+    // session.td_drop_location = null;
     
     console.log("🔁 Greeting detected in valuation flow - resetting to main menu and cleared all session data");
     return {
@@ -78,12 +91,12 @@ async function handleCarValuationStep(session, userMessage) {
         session.step = 'brand';
         return {
           message: "Great! I'll help you get a valuation for your car. Let's start with some basic details.\n\nFirst, which brand is your car?",
-          options: [...await getAllBrands(pool), "Other brands"]
+          options: [...await getAllBrandsFromDB(), "Other brands"]
         };
       }
       if (!session.model) {
         session.step = 'model';
-        const models = await getModelsByBrand(pool, session.brand);
+        const models = await getModelsByBrandFromDB(session.brand);
         return {
           message: `Perfect! Which ${session.brand} model do you have?`,
           options: [...models, `Other ${session.brand} models`]
@@ -135,7 +148,7 @@ async function handleCarValuationStep(session, userMessage) {
       } else {
         session.brand = userMessage;
         session.step = 'model';
-        const models = await getModelsByBrand(pool, userMessage);
+        const models = await getModelsByBrandFromDB(userMessage);
         return {
           message: `Perfect! Which ${userMessage} model do you have?`,
           options: [...models, `Other ${userMessage} models`]
@@ -272,7 +285,8 @@ async function handleCarValuationStep(session, userMessage) {
 
     case 'location':
       session.location = userMessage;
-      session.step = 'done';
+      // After collecting location, move to confirmation step
+      session.step = 'confirmation';
 
       const confirmation = {
         name: session.name,
@@ -286,20 +300,20 @@ async function handleCarValuationStep(session, userMessage) {
 
       // ✅ Save to database
       try {
-        if (!pool || typeof pool.query !== 'function') {
-          console.error('❌ Database pool not available');
-          throw new Error('Database connection not available');
-        }
-
-        const result = await pool.query(
-          `INSERT INTO car_valuations
-          (name, phone, location, brand, model, year, fuel, kms, owner, condition, submitted_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-          RETURNING id`,
-          [
-            confirmation.name,
-            confirmation.phone,
-            confirmation.location,
+        const dbPool = pool || require('../db');
+        console.log('🔍 Database connection:', !!dbPool);
+        
+        // Log the exact query and params for debugging
+        const q = `
+            INSERT INTO car_valuations
+            (name, phone, location, brand, model, year, fuel_type, mileage, owner, condition, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
+            RETURNING id, status`;
+        
+        const params = [
+            session.name,
+            session.phone,
+            session.location,
             session.brand,
             session.model,
             session.year,
@@ -307,26 +321,61 @@ async function handleCarValuationStep(session, userMessage) {
             session.kms,
             session.owner,
             session.condition
-          ]
-        );
+        ];
+
+        console.log('📝 SQL Query:', q);
+        console.log('📝 Parameters:', params);
         
-        console.log('✅ Car valuation saved to database with ID:', result.rows[0]?.id);
+        const result = await dbPool.query(q, params);
+        console.log('✅ Insert successful, returned data:', result.rows[0]);
+        session.valuationId = result.rows[0].id;
       } catch (error) {
-        console.error('❌ Error saving car valuation to database:', error);
-        // Continue with the flow even if database save fails
+        console.error('❌ Database error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+        });
+        throw error;
       }
 
       return {
         message:
-`Perfect ${confirmation.name}! Here's what happens next:
-
+`Perfect ${confirmation.name}! Here's what we have:
++
 📋 SELLER CONFIRMATION:
 👤 Name: ${confirmation.name}
 📱 Phone: ${confirmation.phone}
 🚗 Car: ${confirmation.car_summary}
 📍 Location: ${confirmation.location}
++
+If the details above are correct, please Confirm to proceed or Reject to cancel.`,
+        options: ["Confirm", "Reject"]
+      };
 
-📅 Next Steps:
+    case 'confirmation':
+      if (!session.valuationId) {
+        return { message: "No booking found to confirm. Say 'start' to begin again." };
+      }
+      
+      if (userMessage === 'Confirm') {
+        try {
+          const dbPool = pool || require('../db');
+          await dbPool.query(`
+            UPDATE car_valuations 
+            SET status = 'confirmed', 
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [session.valuationId]);
+          
+          console.log('✅ Valuation confirmed, id:', session.valuationId);
+          
+          // Move to final_options step and show next steps
+          session.step = 'final_options';
+          return {
+            message: `Thank you for confirming! Here's what happens next:
+
+📋 Next Steps:
 1. Our executive will call you within 2 hours
 2. We'll schedule a physical inspection
 3. Final price quote after inspection
@@ -334,8 +383,66 @@ async function handleCarValuationStep(session, userMessage) {
 
 📞 Questions? Call: +91-9876543210
 Thank you for choosing Sherpa Hyundai! 😊`,
-        options: ["Explore", "End Conversation"]
-      };
+            options: ["Explore More", "End Conversation"]
+          };
+        } catch (err) {
+          console.error('❌ Error updating confirmation status:', err);
+          return { message: "An error occurred. Please try again." };
+        }
+      } else if (userMessage === 'Reject') {
+        try {
+          const dbPool = pool || require('../db');
+          
+          // Update car_valuations status
+          await dbPool.query(`
+            UPDATE car_valuations 
+            SET status = 'rejected', 
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [session.valuationId]);
+          
+          console.log('ℹ️ Valuation rejected in car_valuations table, id:', session.valuationId);
+          
+          // Get the updated valuation record for rejection details
+          const valuationResult = await dbPool.query(`
+            SELECT * FROM car_valuations WHERE id = $1
+          `, [session.valuationId]);
+          
+          const valuation = valuationResult.rows[0];
+          
+          // Save rejection to bot_confirmations table
+          const rejectionResult = await dbPool.query(`
+            INSERT INTO bot_confirmations (car_id, whatsapp_number, customer_name, confirmation_type, message_content)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+          `, [
+            null, // car_id is null for valuations
+            valuation.phone,
+            valuation.name,
+            'valuation_rejected',
+            `Car Valuation Request Rejected: ${valuation.year} ${valuation.brand} ${valuation.model} - ${valuation.name} (${valuation.phone}) - Status: ${valuation.status}`
+          ]);
+          
+          console.log('ℹ️ Rejection saved to bot_confirmations, id:', rejectionResult.rows[0].id);
+          console.log('📊 Rejection details:', {
+            id: valuation.id,
+            name: valuation.name,
+            phone: valuation.phone,
+            car: `${valuation.year} ${valuation.brand} ${valuation.model}`,
+            status: valuation.status
+          });
+        } catch (err) {
+          console.error('❌ Error updating rejection status:', err);
+        }
+        session.conversationEnded = true;
+        return { message: "ℹ️ You have rejected the confirmation. If you change your mind, say 'start' to begin again." };
+      } else {
+        // If invalid input, show confirmation options again
+        return {
+          message: "Please select Confirm to proceed or Reject to cancel.",
+          options: ["Confirm", "Reject"]
+        };
+      }
 
     case 'done':
       if (userMessage === "Explore") {
@@ -366,6 +473,39 @@ Have a great day! 😊`
         };
       }
       return { message: "Something went wrong. Please try again." };
+
+    // Add new case for final options
+    case 'final_options':
+      if (userMessage === "Explore More") {
+        session.step = 'main_menu';
+        return {
+          message: "What would you like to explore?",
+          options: [
+            "🚗 Browse Used Cars",
+            "💰 Get Car Valuation", 
+            "📞 Contact Our Team",
+            "ℹ️ About Us"
+          ]
+        };
+      } else if (userMessage === "End Conversation") {
+        session.conversationEnded = true;
+        return {
+          message: `Thank you for choosing Sherpa Hyundai! 🙏
+
+We appreciate your time and look forward to serving you.
+
+📞 For any queries: +91-9876543210
+📍 Visit us: 123 MG Road, Bangalore
+🌐 Website: www.sherpahyundai.com
+
+Have a great day! 😊`
+        };
+      }
+      // If invalid option, show options again
+      return {
+        message: "Please select an option:",
+        options: ["Explore More", "End Conversation"]
+      };
 
     default:
       return { message: "Something went wrong. Please try again." };

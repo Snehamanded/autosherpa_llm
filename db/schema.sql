@@ -11,6 +11,15 @@ CREATE TABLE IF NOT EXISTS dealers (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create car_brands_models table
+CREATE TABLE IF NOT EXISTS car_brands_models (
+    id SERIAL PRIMARY KEY,
+    brand TEXT NOT NULL,
+    model TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create cars table
 CREATE TABLE IF NOT EXISTS cars (
     id SERIAL PRIMARY KEY,
@@ -97,7 +106,9 @@ CREATE TABLE IF NOT EXISTS car_valuations (
     condition VARCHAR(20),
     location VARCHAR(100),
     estimated_value DECIMAL(12,2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    status VARCHAR(20) DEFAULT 'Confirm', -- 'pending', 'confirmed', 'rejected', 'completed'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create message_logs table for tracking WhatsApp messages
@@ -115,6 +126,8 @@ CREATE TABLE IF NOT EXISTS message_logs (
 );
 
 -- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_car_brands_models_brand ON car_brands_models(brand);
+CREATE INDEX IF NOT EXISTS idx_car_brands_models_model ON car_brands_models(model);
 CREATE INDEX IF NOT EXISTS idx_cars_registration_number ON cars(registration_number);
 CREATE INDEX IF NOT EXISTS idx_cars_dealer_id ON cars(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_car_images_car_id ON car_images(car_id);
@@ -125,6 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_callback_requests_status ON callback_requests(sta
 CREATE INDEX IF NOT EXISTS idx_test_drives_created_at ON test_drives(created_at);
 CREATE INDEX IF NOT EXISTS idx_car_valuations_created_at ON car_valuations(created_at);
 CREATE INDEX IF NOT EXISTS idx_car_valuations_phone ON car_valuations(phone);
+CREATE INDEX IF NOT EXISTS idx_car_valuations_status ON car_valuations(status);
 CREATE INDEX IF NOT EXISTS idx_message_logs_phone ON message_logs(phone_number);
 CREATE INDEX IF NOT EXISTS idx_message_logs_type ON message_logs(message_type);
 CREATE INDEX IF NOT EXISTS idx_message_logs_created_at ON message_logs(created_at);
@@ -142,12 +156,14 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_dealers_updated_at BEFORE UPDATE ON dealers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_car_brands_models_updated_at BEFORE UPDATE ON car_brands_models
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_cars_updated_at BEFORE UPDATE ON cars
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_callback_requests_updated_at BEFORE UPDATE ON callback_requests
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Add image_index column to car_images table
-ALTER TABLE car_images
-ADD COLUMN image_index INTEGER;
+CREATE TRIGGER update_car_valuations_updated_at BEFORE UPDATE ON car_valuations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

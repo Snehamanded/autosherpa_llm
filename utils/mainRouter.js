@@ -65,20 +65,40 @@ async function mainRouter(session, message, pool) {
   // Global end conversation handler
   if (lowerMsg.includes('end conversation')) {
     console.log("🛑 'End conversation' detected. Ending session.");
-    // Preserve the ended flag while clearing the rest of the session
-    const endedFlag = true;
+    
+    // If we're in the valuation flow and have a valuation ID, update its status
+    if (session.valuationId) {
+      try {
+        await pool.query(`
+          UPDATE car_valuations 
+          SET status = 'ended',
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `, [session.valuationId]);
+        console.log('✅ Updated valuation status to ended, id:', session.valuationId);
+      } catch (err) {
+        console.error('❌ Error updating valuation status:', err);
+      }
+    }
+
+    // Clear session but preserve minimal context
+    const preservedData = {
+      valuationId: session.valuationId,
+      conversationEnded: true
+    };
     Object.keys(session).forEach(key => {
       delete session[key];
     });
-    session.conversationEnded = endedFlag;
-    // Send a short confirmation; subsequent messages will be ignored until restart
+    Object.assign(session, preservedData);
+
     return { message: "✅ Conversation ended. Say 'start' or 'hi' to begin again." };
   }
 
 if (session.conversationEnded && (lowerMsg.includes('start') || lowerMsg.includes('begin') || lowerMsg.includes('new') || lowerMsg.includes('restart') || lowerMsg.includes('hi') || lowerMsg.includes('hello'))) {
     delete session.conversationEnded;
-    // Clear all session data for fresh start
+    delete session.valuationId; // Clear any old valuation reference
     session.step = 'main_menu';
+    // Clear all session data for fresh start
     session.carIndex = 0;
     session.filteredCars = [];
     session.selectedCar = null;
@@ -113,10 +133,14 @@ if (session.conversationEnded && (lowerMsg.includes('start') || lowerMsg.include
 
 
   // Route based on step or keywords
-  if (session.step && (session.step.startsWith('valuation') || 
-      ['brand', 'model', 'year', 'fuel', 'kms', 'owner', 'condition', 'name', 'phone', 'location', 'other_brand_input', 'other_model_input'].includes(session.step))) {
+  if (session.step && (
+      session.step.startsWith('valuation') || 
+      ['brand', 'model', 'year', 'fuel', 'kms', 'owner', 'condition', 
+       'name', 'phone', 'location', 'other_brand_input', 'other_model_input',
+       'confirmation', 'final_options'].includes(session.step)
+    )) {
     console.log("➡️ Routing to: Car Valuation");
-    return handleCarValuationStep(session, message);
+    return handleCarValuationStep(session, message, pool);
   }
 
   if (session.step && (session.step.startsWith('contact') || 
@@ -156,7 +180,7 @@ if (session.conversationEnded && (lowerMsg.includes('start') || lowerMsg.include
     } catch(_) {}
     session.step = 'valuation_start';
     console.log("💬 Keyword matched: valuation → Routing with prefilled slots");
-    return handleCarValuationStep(session, message);
+    return handleCarValuationStep(session, message, pool);
   }
 
   if (lowerMsg.includes('contact') || message === "📞 Contact Our Team") {

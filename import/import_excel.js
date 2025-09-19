@@ -2,7 +2,7 @@ const xlsx = require('xlsx');
 const { pool } = require('../db');
 
 async function importExcel() {
-  const workbook = xlsx.readFile('./data/brand_models.xlsx');
+  const workbook = xlsx.readFile('../data/brand_models.xlsx');
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = xlsx.utils.sheet_to_json(sheet);
 

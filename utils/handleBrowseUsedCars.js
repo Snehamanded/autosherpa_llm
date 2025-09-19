@@ -52,6 +52,38 @@ function isPubliclyAccessible(baseUrl) {
 async function handleBrowseUsedCars(session, userMessage) {
   console.log("📩 Entered handleBrowseUsedCars");
   
+  // Check for greeting keywords FIRST - before any step processing
+  const lowerMsg = (userMessage || '').toLowerCase().trim();
+  if (['hi', 'hello', 'hey', 'hy', 'start', 'begin', 'restart', 'menu', 'main'].includes(lowerMsg)) {
+    // Clear selected session fields and show main menu
+    session.step = 'main_menu';
+    session.carIndex = 0;
+    session.filteredCars = [];
+    session.selectedCar = null;
+    session.budget = null;
+    session.type = null;
+    session.brand = null;
+    session.testDriveDate = null;
+    session.testDriveTime = null;
+    session.td_name = null;
+    session.td_phone = null;
+    session.td_license = null;
+    session.td_location_mode = null;
+    session.td_home_address = null;
+    session.td_drop_location = null;
+    
+    console.log("🔁 Greeting detected in browse flow - resetting session and showing main menu");
+    return {
+      message: "Hello! 👋 Welcome to Sherpa Hyundai. How can I assist you today?",
+      options: [
+        "🚗 Browse Used Cars",
+        "💰 Get Car Valuation",
+        "📞 Contact Our Team",
+        "ℹ️ About Us"
+      ]
+    };
+  }
+  
   const step = session.step || 'browse_start';
   console.log("🧠 Current step:", step);
   console.log("📝 User input:", userMessage);
