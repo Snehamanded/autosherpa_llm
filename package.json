@@ -14,6 +14,8 @@
     "both": "concurrently \"npm run start\" \"npm run whatsapp\"",
     "both:dev": "concurrently \"npm run dev\" \"npm run whatsapp:dev\"",
     "test:browse": "node scripts/test-browse-used-cars.js",
+    "test:dynamic": "node test-dynamic-flow.js",
+    "test:comprehensive": "node test-comprehensive-scenarios.js",
     "setup:env": "cp env.example .env && echo '✅ Environment file created. Please edit .env with your values.'"
   },
   "keywords": [],
@@ -21,6 +23,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.11.0",
     "bcrypt": "^5.1.1",
     "body-parser": "^2.2.0",
