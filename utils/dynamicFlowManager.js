@@ -19,6 +19,29 @@ class DynamicFlowManager {
       console.log('🤖 Dynamic Flow Manager processing message:', userMessage);
       console.log('📊 Current session state:', JSON.stringify(session, null, 2));
 
+      // Fast-path: handle direct selection of budget to avoid repeating the same question
+      const BUDGET_OPTIONS = [
+        'Under ₹5 Lakhs',
+        '₹5-10 Lakhs',
+        '₹10-15 Lakhs',
+        '₹15-20 Lakhs',
+        'Above ₹20 Lakhs'
+      ];
+      const trimmedMsg = (userMessage || '').trim();
+      if ((session.step === 'browse_budget' || !session.step) && BUDGET_OPTIONS.includes(trimmedMsg)) {
+        session.budget = trimmedMsg;
+        session.step = FLOW_STEPS.BROWSE_TYPE;
+        const types = await getAvailableTypes(this.pool, session.budget);
+        const response = {
+          message: `Perfect! ${session.budget} gives you excellent options. What type of car do you prefer?`,
+          options: ['all Type', ...types],
+          nextStep: FLOW_STEPS.BROWSE_TYPE,
+          extractedData: { intent: 'browse', budget: session.budget }
+        };
+        console.log('✅ Fast-path budget handled:', JSON.stringify(response, null, 2));
+        return response;
+      }
+
       // Get available data for context
       const availableData = await this.getAvailableData(session);
       
